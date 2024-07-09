@@ -1,12 +1,11 @@
 import os
-import sys
-sys.path.append("../")
-from rouge_score import rouge_scorer
-scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 import Levenshtein
 
 import sys
 sys.path.append("../")
+
+from rouge_score import rouge_scorer
+scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
 from configs import *
 

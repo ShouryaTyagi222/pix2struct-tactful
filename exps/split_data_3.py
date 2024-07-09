@@ -8,7 +8,7 @@ from PIL import Image
 import random
 
 input_file = '/data/circulars/DATA/pix2struct_synth/final_dataset.json'
-output_dir = '/data/circulars/DATA/pix2struct+tactful/data-2'
+output_dir = '/data/circulars/DATA/pix2struct+tactful/data-1'
 
 if os.path.exists(output_dir):
     shutil.rmtree(output_dir)

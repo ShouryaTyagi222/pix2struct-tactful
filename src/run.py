@@ -1,14 +1,14 @@
 import os
 import numpy as np
 from tqdm import tqdm
+import Levenshtein
 import warnings
 warnings.filterwarnings("ignore")
-import Levenshtein
-from rouge_score import rouge_scorer
 
 from configs import *
 from src.scores import cal_scores
 
+from rouge_score import rouge_scorer
 scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 
 def get_output(batch,model,model_type,device):
@@ -38,10 +38,12 @@ def run_a_round(train_dataloader,test_dataloader,scheduler,optimizer,model,devic
 
         # TRAINING
         for batch in progbar:
-            labels = batch["labels"]
+            labels = batch["labels"].to(device)
             documents = batch['document']
+            flattened_patches = batch["flattened_patches"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
 
-            outputs = get_output(batch,model,model_name,device)
+            outputs = model(flattened_patches=flattened_patches, attention_mask=attention_mask, labels=labels)
 
             optimizer.zero_grad()
             loss = outputs.loss
@@ -73,56 +75,57 @@ def run_a_round(train_dataloader,test_dataloader,scheduler,optimizer,model,devic
 
         # MODEL EVALUATION
         model.eval()
-        Loss = []
-        total_rouge1 = 0
-        total_rougeL = 0
-        total_samples = 0
-        total_anls = 0
-        progbar = tqdm(test_dataloader, desc=f'Epoch {epoch}', unit='batch')
-        for batch in progbar:
-            labels = batch["labels"]
-            documents = batch['document']
+        with torch.no_grad():
+            Loss = []
+            total_rouge1 = 0
+            total_rougeL = 0
+            total_samples = 0
+            total_anls = 0
+            progbar = tqdm(test_dataloader, desc=f'Epoch {epoch}', unit='batch')
+            for batch in progbar:
+                labels = batch["labels"]
+                documents = batch['document']
 
-            outputs = get_output(batch,model,model_name,device)
+                outputs = get_output(batch,model,model_name,device)
 
-            loss = outputs.loss
-            Loss.append(loss.item())
+                loss = outputs.loss
+                Loss.append(loss.item())
 
-            # Decode predictions and labels
-            predictions = processor.batch_decode(outputs.logits.argmax(-1))
-            labels = processor.batch_decode(labels)
+                # Decode predictions and labels
+                predictions = processor.batch_decode(outputs.logits.argmax(-1))
+                labels = processor.batch_decode(labels)
 
-            # Calculate ROUGE scores
-            for pred, label in zip(predictions, labels):
-                try:
-                    eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
-                    eos_label = label.index("</s>") if "</s>" in label else len(label)
+                # Calculate ROUGE scores
+                for pred, label in zip(predictions, labels):
+                    try:
+                        eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
+                        eos_label = label.index("</s>") if "</s>" in label else len(label)
 
-                    pred_no_pad = [token for token in pred[:eos_pred] if token != '<pad>']
-                    label_no_pad = [token for token in label[:eos_label] if token != '<pad>']
+                        pred_no_pad = [token for token in pred[:eos_pred] if token != '<pad>']
+                        label_no_pad = [token for token in label[:eos_label] if token != '<pad>']
 
-                    scores = scorer.score(" ".join(pred_no_pad), " ".join(label_no_pad))
-                    total_rouge1 += scores['rouge1'].fmeasure
-                    total_rougeL += scores['rougeL'].fmeasure
-                    total_samples += 1
+                        scores = scorer.score(" ".join(pred_no_pad), " ".join(label_no_pad))
+                        total_rouge1 += scores['rouge1'].fmeasure
+                        total_rougeL += scores['rougeL'].fmeasure
+                        total_samples += 1
 
-                    dist = Levenshtein.distance(" ".join(pred_no_pad), " ".join(label_no_pad))
-                    normalized_dist = dist / len(label[:eos_label])
-                    total_anls = total_anls + normalized_dist
-                except :
-                    # print('Error in Score Calculation')
-                    pass
+                        dist = Levenshtein.distance(" ".join(pred_no_pad), " ".join(label_no_pad))
+                        normalized_dist = dist / len(label[:eos_label])
+                        total_anls = total_anls + normalized_dist
+                    except :
+                        # print('Error in Score Calculation')
+                        pass
 
-            with open(os.path.join(model_path,f"{model_name}_sample_q_and_a.txt"), 'a') as f:
-                for doc, pred, label in zip(documents, predictions, labels):
-                    eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
-                    eos_label = label.index("</s>") if "</s>" in label else len(label)
+                with open(os.path.join(model_path,f"{model_name}_sample_q_and_a.txt"), 'a') as f:
+                    for doc, pred, label in zip(documents, predictions, labels):
+                        eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
+                        eos_label = label.index("</s>") if "</s>" in label else len(label)
 
-                    f.write("Document: " + str(doc) + "\n")
-                    f.write("Predictions: " + str(pred[:eos_pred]) + "\n")
-                    f.write("Labels: " + str(label[:eos_label]) + "\n")
+                        f.write("Document: " + str(doc) + "\n")
+                        f.write("Predictions: " + str(pred[:eos_pred]) + "\n")
+                        f.write("Labels: " + str(label[:eos_label]) + "\n")
 
-            progbar.set_description("Epoch : %s, Test Loss : %0.3f, current Loss : %0.3f" % (epoch+1, np.mean(Loss), loss.item()))
+                progbar.set_description("Epoch : %s, Test Loss : %0.3f, current Loss : %0.3f" % (epoch+1, np.mean(Loss), loss.item()))
 
         # SAVING SCORES 
         avg_anls = total_anls / total_samples  

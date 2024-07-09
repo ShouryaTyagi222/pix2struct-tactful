@@ -1,15 +1,17 @@
 import os, json
-import torch
-from PIL import Image
-import sys
-sys.path.append("../")
-from torch.utils.data import Dataset, DataLoader
-from rouge_score import rouge_scorer
-scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
 import time
+from PIL import Image
 
 import sys
 sys.path.append("../")
+
+import torch
+from torch.utils.data import Dataset, DataLoader
+
+from rouge_score import rouge_scorer
+scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+
+from configs import IMAGE_WIDTH,IMAGE_HEIGHT
 
 
 
@@ -26,7 +28,7 @@ class Pix2StructDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
         try:
-            image = Image.open(os.path.join(self.image_dir, item['file_name']))
+            image = Image.open(os.path.join(self.image_dir, item['file_name'])).resize((IMAGE_WIDTH,IMAGE_HEIGHT))
         except Exception as e:
             print('Error :',e)
             return None
@@ -40,13 +42,13 @@ class Pix2StructDataset(Dataset):
         encoding['document'] = item['file_name']
         return encoding
 
+
+
 def load_data(input_file, image_dir, processor, batch_size):
 
     print('Loading the Data')
     t1 = time.time()
     data_file = json.load(open(input_file))
-    print('Data Size :', len(data_file))
-    
     def collator(batch):
         # print("Collating")
         new_batch = {"flattened_patches":[], "attention_mask":[]}
@@ -72,12 +74,10 @@ def load_data(input_file, image_dir, processor, batch_size):
         return new_batch
 
     dataset = Pix2StructDataset(data_file, image_dir, processor, max_patches=1024)
-    # dataset = Pix2StructDataset1(data_file)
+    print('Data Size :', len(dataset))
 
     dataset = [item for item in dataset if item is not None]
-    dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size, collate_fn=collator)
-    # dataset = [item for item in dataset if item is not None]
-    # dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size, collate_fn=collator1)
+    dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size, collate_fn=collator, num_workers = 4, pin_memory = True)
     print('Data Loaded in :', time.time() - t1)
 
     return dataloader

@@ -2,8 +2,6 @@ import os, shutil, json
 import numpy as np
 import sys
 sys.path.append("../")
-import sys
-sys.path.append("../")
     
 
 def crop_object(image, box, ground_truth=False):
@@ -88,7 +86,7 @@ def create_dir(dir_name):
 def get_original_images_path(subset_result:list,img_dir:str):
     return ["_".join(os.path.basename(x).split("_")[:-1])+'.png' for x in subset_result]
 
-def aug_train_subset(subset_result, train_data_json, lake_data_json, budget, src_dir, dest_dir):
+def aug_train_subset(subset_result, train_data_json, lake_data_json, src_dir, dest_dir):
     with open(lake_data_json, mode="r") as f:
         lake_dataset = json.load(f)
     with open(train_data_json, mode="r") as f:
@@ -104,10 +102,12 @@ def aug_train_subset(subset_result, train_data_json, lake_data_json, budget, src
 
     #moving data from lake set to train set.
     change_dir(subset_result, src_dir, dest_dir)
-    print('\n SHIFT TRAIN LEN :',len(train_dataset))
+    print('\n NEW TRAIN LEN :',len(train_dataset))
 
     #changing the file for annotations
     with open(lake_data_json, mode='w') as f:
         json.dump(new_lake_data,f,indent=4)
     with open(train_data_json,'w') as f:
         json.dump(train_dataset,f,indent=4)
+
+    return len(train_dataset)

@@ -14,7 +14,6 @@ class TACTFUL_SMI(Strategy):
     def select(self, budget, query_file, lake_file, query_images, lake_images, processor):
 
         model_path = self.args['model_path']
-        clazz = self.args['class']
         iteration = self.args['iteration']
         eta = self.args['eta']
         optimizer = self.args['optimizer'] if 'optimizer' in self.args else 'NaiveGreedy'
@@ -105,6 +104,6 @@ class TACTFUL_SMI(Strategy):
         return lake_image_list, greedyIndices
 
 if __name__ == "__main__":
-    strategy_sel = TACTFUL_SMI(args = {"class":None, 'eta':1, "model_path":'/', 'smi_function':'fl2mi', 'iteration' : 1})
+    strategy_sel = TACTFUL_SMI(args = {'eta':1, "model_path":'/', 'smi_function':'fl2mi', 'iteration' : 1})
     lake_image_list, subset_result = strategy_sel.select(10)
     print(lake_image_list)

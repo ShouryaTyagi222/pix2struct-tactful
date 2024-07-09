@@ -1,15 +1,12 @@
 # apply he poolings to the embeddings outputss
 
 from PIL import Image
-import requests
 from transformers import AutoProcessor, Pix2StructForConditionalGeneration
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-import cv2
+from torch.utils.data import Dataset
 from tqdm import tqdm
 import json
 import torch
-from sklearn.model_selection import train_test_split
 import torch
 import os
 import time

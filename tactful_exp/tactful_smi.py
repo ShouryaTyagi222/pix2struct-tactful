@@ -1,13 +1,9 @@
 from .strategy import Strategy
-import numpy as np
 
 from .encoder_3 import Pix2StructEncoder
 
 import torch
-from torch import nn
-from scipy import stats
 import submodlib
-import os
 import json
 
 class TACTFUL_SMI(Strategy):
@@ -33,12 +29,14 @@ class TACTFUL_SMI(Strategy):
             query_data = json.load(f)
 
         f_model = Pix2StructEncoder(processor)
+        print('CALCULATING QUERY EMBEDDINGS')
         query_set_embeddings = f_model.get_embeds(
                 query_data, query_images)
 
         with open(lake_file) as f:
             lake_data = json.load(f)
             
+        print('CALCULAITNG LAKE EMBEDDINGS')
         lake_set_embeddings = f_model.get_embeds(
                 lake_data, lake_images)
         
@@ -73,7 +71,6 @@ class TACTFUL_SMI(Strategy):
                                                                       magnificationEta=eta)
 
         if(self.args['smi_function']=='fl2mi'):
-            print('Runnign fl2mi')
             obj = submodlib.FacilityLocationVariantMutualInformationFunction(n=lake_embedding.shape[0],
                                                                       num_queries=query_embedding.shape[0], 
                                                                       data=lake_embedding,

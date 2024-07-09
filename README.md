@@ -1,4 +1,4 @@
-# Tactful
+# Pix2Struct+Tactful
 
 ## config
 `configs.py` consists of the required configs for the model training
@@ -21,7 +21,7 @@
 
 ## train
 ```
-python train.py -i -m <INITIAL_MODEL_PATH>
+python train.py
 ```
 ## infer
 ```

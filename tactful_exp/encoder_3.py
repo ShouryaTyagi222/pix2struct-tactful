@@ -1,23 +1,16 @@
 from PIL import Image
-import requests
-from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+from transformers import Pix2StructForConditionalGeneration
+from transformers import AutoProcessor
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-import cv2
 from tqdm import tqdm
 import json
 import torch
-from sklearn.model_selection import train_test_split
 import torch
 import os
 import time
 import torch.nn as nn
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-# print("PROCESSOR LOADING")
-# processor = AutoProcessor.from_pretrained("ybelkada/pix2struct-base")
-# print('PROCESSOR LOADED')
 
 class Pix2StructEncoder():
     def __init__(self, processor):
@@ -54,15 +47,9 @@ class Pix2StructEncoder():
                 
                 # Pass through linear layer for reshaping
                 output = self.linear_layer(encoded_output)
-            # print(outputs)
-            # print('OUTPUTS KEYS :', outputs.keys())
-            # print('ENCODER LAST HIDDEN STATES :', outputs.last_hidden_state)
-            # print('ENCODER LAST HIDDEN STATES SHAPE :', output.shape)
             d_hist = output.data.cpu().numpy().flatten()
             d_hist /= np.sum(d_hist)
-            # print('ENCODER LAST HIDDEN STATES :', d_hist)
-            # print('PREPROCESSED ENCODER LAST HIDDEN STATES SHAPE :', d_hist.shape)
-
+            
             embeds.append({
                 'img':  os.path.basename(documents),
                 'hist': d_hist
@@ -74,11 +61,12 @@ class Pix2StructEncoder():
 
 
 if __name__ == '__main__':
+    processor = AutoProcessor.from_pretrained("ybelkada/pix2struct-base")   
     with open('/data/circulars/DATA/pix2struct+tactful/data-1/docvqa_train.json') as f:
         query_data = json.load(f)
 
 
-    f_model = Pix2StructEncoder()
+    f_model = Pix2StructEncoder(processor)
     print('RUNNING ')
     query_set_embeddings = f_model.get_embeds(
             query_data, '/data/circulars/DATA/pix2struct+tactful/data-1/train')

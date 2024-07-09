@@ -1,19 +1,15 @@
 import os
 import torch
 
-from detectron2 import model_zoo
-from detectron2.config import get_cfg
-from detectron2.data.datasets import register_coco_instances
-
 # Basic args for Tactful 
 args = {
     "strategy":'fl2mi',      # strategy to be used for tactful
     "total_budget":5,  # Total data points available
-    "budget":407,  # Budget per iteration
-    "lake_size":13000,  # Size of the lake dataset
+    "budget":32000,  # Budget per iteration
+    "lake_size":32000,  # Size of the lake dataset
     "train_size":407,  # Size of the training dataset
     "category": "Reference Block",   # Target Class     Note : use Stamps-Seals instead of Stamps/Seals due to path issues
-    "device":0,   # GPU Device
+    "device":1,   # GPU Device
     "proposal_budget":100,  # Budget for proposal generation
     "iterations":3,   # Total AL Rounds
     "batch_size":4    # Batch Size
@@ -50,12 +46,6 @@ wandb_project_desc=f'pix2struct_Tactful_FineTuning_{model_name}'
 wandb_name=f'{os.path.basename(train_path)}_{args["strategy"]}_{learning_rate}_{args["batch_size"]}_{ROUGE_THRESH}'
 wandb_model_desc=f'{model_name} - Fine Tuned on DocVQA using pix2struct+tactful'
 wandb_key='ead46cf543385050fcec224a0c2850faffcae584'
-
-# Faster RCNN model configs
-# rcnn_model_path = '/data/circulars/DATA/TACTFUL/faster_rcnn_output/random/initial_training/model_final.pth'
-# config_path = '/data/circulars/DATA/TACTFUL/Data/faster_rcnn_pub_config.yml'
-# MAPPING = {'Address of Issuing Authority': 0, 'Date Block': 1, 'Header Block': 2, 'Table': 3, 'Circular ID': 4, 'Body Block': 5, 'Signature': 6, 'Signature Block': 7, 'Stamps-Seals': 8, 'Handwritten Text': 9, 'Copy-Forwarded To Block': 10, 'Addressed To Block': 11, 'Subject Block': 12, 'Logos': 13, 'Reference Block': 14, 'Adressed To': 15, 'Circular Reference': 16, 'Name of the signatory': 17, 'Signatory-Designation': 18, 'Reference Id': 19, 'Forwarder': 20, 'Forwarder-Designation': 21, 'Issuing Authority': 22}
-# R_MAPPING = {str(value):key for key,value in MAPPING.items()}
 
 train_data_dirs = (os.path.join(data_dir,"train"),
                    os.path.join(data_dir,"docvqa_train.json"))

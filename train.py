@@ -21,43 +21,6 @@ from src.run import run_a_round
 from utils.data import load_data
 
 print('RUNNING')  
-import json
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from rouge_score import rouge_scorer
-scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
-import sys
-sys.path.append("../")
-
-
-
-class Pix2StructDataset(Dataset):
-    def __init__(self, data, image_dir, processor, max_patches):
-        self.data = data
-        self.processor = processor
-        self.max_patches = max_patches
-        self.image_dir = image_dir
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        item = self.data[idx]
-        try:
-            image = Image.open(os.path.join(self.image_dir, item['file_name'])).resize((IMAGE_WIDTH,IMAGE_HEIGHT))
-        except Exception as e:
-            print('Error :',e)
-            return None
-        processed_data = self.processor(images=image, return_tensors="pt", text=item["question"], max_patches=self.max_patches)
-        encoding = {}
-        for key in processed_data.keys():
-            if key in ['flattened_patches', 'attention_mask']:
-                encoding[key] = processed_data[key].squeeze()
-        encoding['answer'] = item['answer']
-        encoding['question'] = item['question']
-        encoding['document'] = item['file_name']
-        return encoding
-
 
 def main():
     iteration = args['iterations']
@@ -74,29 +37,7 @@ def main():
 
     # LOADING INITIAL REQUIREMENTS
     processor = AutoProcessor.from_pretrained(PROCESSOR_PATH)
-    def collator(batch):
-        # print("Collating")
-        new_batch = {"flattened_patches":[], "attention_mask":[]}
-        texts = [item["answer"] for item in batch]
-        questions = [item["question"] for item in batch]
 
-        documents = [item["document"] for item in batch]
-        
-        text_inputs = processor(text=texts, padding="max_length", return_tensors="pt", max_length=128, truncation=True)
-        
-        new_batch["labels"] = text_inputs.input_ids
-        
-        for item in batch:
-            # print("Item Keys", item.keys())
-            new_batch["flattened_patches"].append(item["flattened_patches"])
-            new_batch["attention_mask"].append(item["attention_mask"])
-        
-        new_batch["flattened_patches"] = torch.stack(new_batch["flattened_patches"])
-        new_batch["attention_mask"] = torch.stack(new_batch["attention_mask"]) 
-        new_batch["document"] = documents
-        new_batch['questions'] = questions
-
-        return new_batch
     i = 0
     device = "cuda" if torch.cuda.is_available() else "cpu"
     device = torch.device(f"cuda:{args['device']}")
@@ -125,14 +66,6 @@ def main():
 
 
         # LOADING THE DATALOADER
-        # print('dataloading started')
-        # t1 = time.time()
-        # train_file = json.load(open(train_data_dirs[1]))
-        # train_dataset = Pix2StructDataset(train_file, train_data_dirs[0], processor, max_patches=1024)
-        # print('Data Size :', len(train_dataset))
-        # train_dataset = [item for item in train_dataset if item is not None]
-        # train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args['batch_size'], collate_fn=collator, num_workers = 4, pin_memory = True)
-        # print('Data Loaded in :', time.time() - t1)
         train_dataloader=load_data(train_data_dirs[1], train_data_dirs[0], processor, args['batch_size'])
 
         model.train()
@@ -169,9 +102,6 @@ def main():
             print('The Saved model is not found.')
             return
         t_flag = 0 
-
-        optimizer = AdamW(model.parameters(), lr=learning_rate)
-        scheduler = CosineAnnealingLR(optimizer, T_max=SCHEDULER_T_MAX)
     # STARTING THE AL ROUND
 
     i=0
@@ -182,6 +112,9 @@ def main():
         print(f'AL Round : {i}/{iteration}')
         with open(os.path.join(model_path,f"{model_name}_logs.txt"), "a") as f:
             f.write(f'\nAL Round : {i}/{iteration}\n')
+
+        optimizer = AdamW(model.parameters(), lr=learning_rate)
+        scheduler = CosineAnnealingLR(optimizer, T_max=SCHEDULER_T_MAX)
 
         # SELECTING THE DATA USING TACTFUL
         if t_flag:
@@ -214,15 +147,6 @@ def main():
         t_flag = 1
            
         torch.cuda.empty_cache()
-        # LOADING THE NEW DATALOADER
-        # print('dataloading started')
-        # t1 = time.time()
-        # train_file = json.load(open(train_data_dirs[1]))
-        # train_dataset = Pix2StructDataset(train_file, train_data_dirs[0], processor, max_patches=1024)
-        # print('Data Size :', len(train_dataset))
-        # train_dataset = [item for item in train_dataset if item is not None]
-        # train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args['batch_size'], collate_fn=collator, num_workers = 4, pin_memory = True)
-        # print('Data Loaded in :', time.time() - t1)
         train_dataloader=load_data(train_data_dirs[1], train_data_dirs[0], processor, args['batch_size'])
 
         model, scheduler, optimizer, logs = run_a_round(train_dataloader,test_dataloader,scheduler,optimizer,model,device,wandb_flag,iteration, processor)

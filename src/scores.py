@@ -22,33 +22,49 @@ def cal_scores(outputs, labels, documents, processor_base):
 
     # Calculate ROUGE scores
     for pred, label in zip(predictions, labels):
-        eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
-        eos_label = label.index("</s>") if "</s>" in label else len(label)
+        try:
+            eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
+            eos_label = label.index("</s>") if "</s>" in label else len(label)
 
-        pred_no_pad = [token for token in pred[:eos_pred] if token != '<pad>']
-        label_no_pad = [token for token in label[:eos_label] if token != '<pad>']
+            pred_no_pad = [token for token in pred[:eos_pred] if token != '<pad>']
+            label_no_pad = [token for token in label[:eos_label] if token != '<pad>']
 
-        scores = scorer.score(" ".join(pred_no_pad), " ".join(label_no_pad))
-        total_rouge1 += scores['rouge1'].fmeasure
-        total_rougeL += scores['rougeL'].fmeasure
-        total_samples += 1
+            scores = scorer.score(" ".join(pred_no_pad), " ".join(label_no_pad))
+            total_rouge1 += scores['rouge1'].fmeasure
+            total_rougeL += scores['rougeL'].fmeasure
+            total_samples += 1
 
-        dist = Levenshtein.distance(" ".join(pred_no_pad), " ".join(label_no_pad))
-        normalized_dist = dist / len(label[:eos_label])
-        total_anls = total_anls + normalized_dist
+            dist = Levenshtein.distance(" ".join(pred_no_pad), " ".join(label_no_pad))
+            normalized_dist = dist / len(label[:eos_label])
+            total_anls = total_anls + normalized_dist
+        except:
+            pass
     
     # Write predictions and labels to file
     with open(os.path.join(model_path,f"{model_name}_sample_q_and_a.txt"), 'a') as f:
         for doc, pred, label in zip(documents, predictions, labels):
-            eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
-            eos_label = label.index("</s>") if "</s>" in label else len(label)
+            try:
 
-            f.write("Document: " + str(doc) + "\n")
-            f.write("Predictions: " + str(pred[:eos_pred]) + "\n")
-            f.write("Labels: " + str(label[:eos_label]) + "\n")
+                eos_pred = pred.index("</s>") if "</s>" in pred else len(pred)
+                eos_label = label.index("</s>") if "</s>" in label else len(label)
+
+                f.write("Document: " + str(doc) + "\n")
+                f.write("Predictions: " + str(pred[:eos_pred]) + "\n")
+                f.write("Labels: " + str(label[:eos_label]) + "\n")
+            except:
+                pass
     
-    avg_anls = total_anls / total_samples  
-    avg_rouge1 = total_rouge1 / total_samples
-    avg_rougeL = total_rougeL / total_samples
+    try:
+        avg_anls = total_anls / total_samples  
+    except:
+        avg_anls = 0
+    try:
+        avg_rouge1 = total_rouge1 / total_samples
+    except:
+        avg_rouge1 = 0
+    try:
+        avg_rougeL = total_rougeL / total_samples
+    except:
+        avg_rougeL = 0
 
     return avg_rouge1, avg_rougeL, avg_anls

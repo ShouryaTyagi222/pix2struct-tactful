@@ -42,7 +42,8 @@ PROCESSOR_PATH = "ybelkada/pix2struct-base"
 IMAGE_DIR = '/data/circulars/DATA/LayoutLM/docvqa_dataset/Images'   # Path to the Image Directory
 
 # Wandb Credentials
-wandb_flag=1
+wandb_flag=0
+
 wandb_project_desc=f'pix2struct_Tactful_FineTuning_{model_name}'
 wandb_name=f'{os.path.basename(train_path)}_{args["strategy"]}_{learning_rate}_{args["batch_size"]}_{ROUGE_THRESH}'
 wandb_model_desc=f'{model_name} - Fine Tuned on DocVQA using pix2struct+tactful'

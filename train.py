@@ -8,6 +8,7 @@ from transformers import Pix2StructForConditionalGeneration
 from transformers import AdamW
 
 import wandb
+from torch.utils.tensorboard import SummaryWriter
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -20,12 +21,15 @@ from configs import *
 from src.run import run_a_round
 from utils.data import load_data
 
-print('RUNNING')  
+print('RUNNING')
 
 def main():
     iteration = args['iterations']
     selection_strag = args['strategy']
     budget = args['proposal_budget']
+
+    # Initialize TensorBoard writer
+    writer = SummaryWriter(log_dir=os.path.join(model_path,'tensorboard_logs'))
 
     # LOG IN TO WANDB
     if wandb_flag:
@@ -44,14 +48,6 @@ def main():
     with open(os.path.join(model_path,f"{model_name}_logs.txt"), "a") as f:
         f.write("")
 
-    # print('dataloading started')
-    # t1 = time.time()
-    # test_file = json.load(open(val_data_dirs[1]))
-    # test_dataset = Pix2StructDataset(test_file, val_data_dirs[0], processor, max_patches=1024)
-    # print('Data Size :', len(test_dataset))
-    # test_dataset = [item for item in test_dataset if item is not None]
-    # test_dataloader = DataLoader(test_dataset, shuffle=True, batch_size=args['batch_size'], collate_fn=collator, num_workers = 4, pin_memory = True)
-    # print('Data Loaded in :', time.time() - t1)
     test_dataloader=load_data(val_data_dirs[1], val_data_dirs[0], processor, args['batch_size'])
 
     # INITIAL TRAINING
@@ -64,7 +60,6 @@ def main():
         scheduler = CosineAnnealingLR(optimizer, T_max=SCHEDULER_T_MAX)
         model.to(device)
 
-
         # LOADING THE DATALOADER
         train_dataloader=load_data(train_data_dirs[1], train_data_dirs[0], processor, args['batch_size'])
 
@@ -76,15 +71,23 @@ def main():
 
         print('Training the Initial Model')
         st = time.time()
-        model, scheduler, optimizer, logs = run_a_round(train_dataloader,test_dataloader,scheduler,optimizer,model,device,wandb_flag,iteration,processor)
+        model, scheduler, optimizer, logs = run_a_round(train_dataloader, test_dataloader, scheduler, optimizer, model, device, wandb_flag, iteration, processor)
         et = time.time()
-        print('TIME TAKES :', et-st)
+        print('TIME TAKEN :', et-st)
 
         with open(os.path.join(model_path,f"{model_name}_logs.txt"), "a") as f:
             f.write(f"TIME TAKEN : {et-st}\n")
 
         if wandb_flag:
             wandb.log(logs)
+        writer.add_scalar('Training Loss', logs['Training Loss'], 0)
+        writer.add_scalar('Testing Loss', logs['Testing Loss'], 0)
+        writer.add_scalar('Train Rouge-1', logs['Train Rouge-1'], 0)
+        writer.add_scalar('Train Rouge-L', logs['Train Rouge-L'], 0)
+        writer.add_scalar('Train ANLS Score', logs['Train ANLS Score'], 0)
+        writer.add_scalar('Test Rouge-1', logs['Test Rouge-1'], 0)
+        writer.add_scalar('Test Rouge-L', logs['Test Rouge-L'], 0)
+        writer.add_scalar('Test ANLS', logs['Test ANLS'], 0)
 
         model.save_pretrained(os.path.join(output_dir,'model'))
         print('saved the models in :', os.path.join(output_dir,'model'))
@@ -149,7 +152,7 @@ def main():
         torch.cuda.empty_cache()
         train_dataloader=load_data(train_data_dirs[1], train_data_dirs[0], processor, args['batch_size'])
 
-        model, scheduler, optimizer, logs = run_a_round(train_dataloader,test_dataloader,scheduler,optimizer,model,device,wandb_flag,iteration, processor)
+        model, scheduler, optimizer, logs = run_a_round(train_dataloader, test_dataloader, scheduler, optimizer, model, device, wandb_flag, iteration, processor)
 
         et = time.time()
         print('TIME TAKEN :', et-st)
@@ -158,6 +161,14 @@ def main():
 
         if wandb_flag:
             wandb.log(logs)
+        writer.add_scalar('Training Loss', logs['Training Loss'], i+1)
+        writer.add_scalar('Testing Loss', logs['Testing Loss'], i+1)
+        writer.add_scalar('Train Rouge-1', logs['Train Rouge-1'], i+1)
+        writer.add_scalar('Train Rouge-L', logs['Train Rouge-L'], i+1)
+        writer.add_scalar('Train ANLS Score', logs['Train ANLS Score'], i+1)
+        writer.add_scalar('Test Rouge-1', logs['Test Rouge-1'], i+1)
+        writer.add_scalar('Test Rouge-L', logs['Test Rouge-L'], i+1)
+        writer.add_scalar('Test ANLS', logs['Test ANLS'], i+1)
 
         torch.cuda.empty_cache()
         del train_dataloader
@@ -166,7 +177,7 @@ def main():
         i += 1
 
     model.save_pretrained(os.path.join(output_dir,'model'))
-
+    writer.close()
 
 if __name__ == "__main__":
     main()
